@@ -2,8 +2,10 @@ import time
 import threading
 from collections import deque
 
+from .rate_limiter import RateLimiter
 
-class SlidingWindowLogs(object):
+
+class SlidingWindowLogs(RateLimiter):
     def __init__(self, requests: int, windowTimeInSec: int):
         self.lock = threading.Lock()
         self.timestamps = deque()
@@ -11,13 +13,13 @@ class SlidingWindowLogs(object):
         self.windowTimeInSec = windowTimeInSec
     
     def process(self):
-        # while True:
-        #     pass
-        pass
+        while True:
+            self.evictOlderTimestamps()
 
     # eviction of timestamps older than the window time
-    def evictOlderTimestamps(self, currentTimestamp):
-        while len(self.timestamps) != 0 and (currentTimestamp - 
+    def evictOlderTimestamps(self):
+        currentTimestamp = self.getCurrentTimestampInSec()
+        while len(self.timestamps) > 0 and (currentTimestamp - 
                 self.timestamps[0] > self.windowTimeInSec):
             self.timestamps.popleft()
 
@@ -29,11 +31,7 @@ class SlidingWindowLogs(object):
     # Checks if the service call should be allowed or not
     def consume(self):
         with self.lock:
-            currentTimestamp = self.getCurrentTimestampInSec()
-            # remove all the existing older timestamps
-            self.evictOlderTimestamps(currentTimestamp)
-            self.timestamps.append(currentTimestamp)
-            print(len(self.timestamps))
+            self.timestamps.append(self.getCurrentTimestampInSec())
             if len(self.timestamps) > self.requests:
                 return False
             return True

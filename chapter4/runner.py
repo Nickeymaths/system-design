@@ -74,6 +74,6 @@ class CustomRunner(Runner):
 
 
 if __name__ == "__main__":
-    limiter = SlidingWindowCount(20, 5)
+    limiter = SlidingWindowLogs(20, 5)
     runner = CustomRunner(limiter, 30)
     runner.start()
