@@ -1,7 +1,6 @@
 import time
 import threading
 from collections import deque
-# from limiter.rate_limiter import RateLimiter
 
 
 class SlidingWindowLogs(object):

@@ -1,4 +1,5 @@
 import os
+import random
 import time
 import threading
 from datetime import datetime
@@ -6,6 +7,7 @@ import uuid
 
 from matplotlib import pyplot as plt
 import pandas as pd
+from limiter.sliding_window_counter import SlidingWindowCount
 from limiter.rate_limiter import RateLimiter
 from limiter.token_bucket import TokenBucket
 from limiter.leaking_bucket import LeakingBucket
@@ -19,11 +21,14 @@ class Runner:
         self.counter = []
         self._limiter_thread = threading.Thread(target=self.rate_limiter.process)
         self._runner_thread = threading.Thread(target=self._run)
+    
+    def delay(self):
+        time.sleep(1/self.rps)
         
     def _run(self):
         start_time = time.time()
         while time.time() - start_time < self.duration:
-            time.sleep(1/self.rps)
+            self.delay()
             self.counter.append((str(datetime.now()), self.rate_limiter.consume()))
         
         self.export_result()
@@ -40,7 +45,7 @@ class Runner:
         result.set_index("timestamp", inplace=True)
         result.sort_index(inplace=True)
         
-        grouped_by_timeframe = result.resample('1s').sum()
+        grouped_by_timeframe = result.resample('5s').sum()
         fig, ax = plt.subplots()
         ax.plot(grouped_by_timeframe.index, grouped_by_timeframe["accepted"], marker='o')
         ax.set_title(f"Accepted over Time of {self.rate_limiter.__class__.__name__}")
@@ -55,11 +60,20 @@ class Runner:
         self._runner_thread.start()
 
 
-if __name__ == '__main__':
-    rps = 100
-    rate_limiter = TokenBucket(capacity=500, refill_rate=200)
-    # rate_limiter = LeakingBucket(bucket_size=50, outflow_rate=20)
-    duration = 30
-    
-    runner = Runner(rps, rate_limiter, duration)
+class CustomRunner(Runner):
+    def __init__(self, rate_limiter: RateLimiter, duration: int) -> None:
+        self.rate_limiter = rate_limiter
+        self.duration = duration
+        
+        self.counter = []
+        self._limiter_thread = threading.Thread(target=self.rate_limiter.process)
+        self._runner_thread = threading.Thread(target=self._run)
+        
+    def delay(self):
+        time.sleep(random.random())
+
+
+if __name__ == "__main__":
+    limiter = SlidingWindowCount(20, 5)
+    runner = CustomRunner(limiter, 30)
     runner.start()
