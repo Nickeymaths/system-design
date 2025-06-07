@@ -8,6 +8,8 @@ from matplotlib import pyplot as plt
 import pandas as pd
 from limiter.rate_limiter import RateLimiter
 from limiter.token_bucket import TokenBucket
+from limiter.leaking_bucket import LeakingBucket
+from limiter.sliding_window_log import SlidingWindowLogs
 
 class Runner:
     def __init__(self, rps: int, rate_limiter: RateLimiter, duration: int) -> None:
@@ -30,7 +32,6 @@ class Runner:
         id = str(uuid.uuid4())
         df = pd.DataFrame(self.counter, columns=['timestamp', 'accepted'])
         os.makedirs("output", exist_ok=True)
-        df.to_csv(f"output/{id}.csv", index=False)
         self.save_image(id, df)
     
     def save_image(self, image_name: str, result: pd.DataFrame):
@@ -51,13 +52,13 @@ class Runner:
     
     def start(self):
         self._limiter_thread.start()
-        time.sleep(10)
         self._runner_thread.start()
 
 
 if __name__ == '__main__':
-    rps = 20
-    rate_limiter = TokenBucket(capacity=10, refill_rate=10)
+    rps = 100
+    rate_limiter = TokenBucket(capacity=500, refill_rate=200)
+    # rate_limiter = LeakingBucket(bucket_size=50, outflow_rate=20)
     duration = 30
     
     runner = Runner(rps, rate_limiter, duration)
